@@ -61,9 +61,6 @@ export type Movie = {
     "id": number
     "title": string
     "image": string
-    "marks": number
-    "clips": number
-    "star": string
 }
 
 export function parseClips(contentText: string): Movie[] {
@@ -80,36 +77,9 @@ export function parseClips(contentText: string): Movie[] {
 
     const movieRegexp = new RegExp([
         '<div class="c-content-item">\\s*',
-        '<a class="swiper-no-swiping" href="/movies/(\\d+)">\\s*',
+        '<a class="swiper-no-swiping" href="/movies/(?<id>\\d+)">\\s*',
         '<div[^>]*>\\s*', // <div class="c-content-item__jacket">
-        '<img alt="([^"]+)"[^>]+src="([^"]+)"[^>]+>\\s*',
-        '</div>\\s*',
-        '</a>\\s*',
-        '<h3[^>]*>\\s*',
-        '<a.+\\s*', // <a class="swiper-no-swiping" href="/movies/53308">そして父になる</a>
-        '</h3>\\s*',
-
-        '<div class="c-content-item-infobar">\\s*',
-        '<div[^>]*>\\s*',
-        '<div[^>]*>\\s*',
-        '<a[^>]*>\\s*',
-        '<span class="c-content-item-infobar__body">(\\d+)</span>\\s*',
-        '</a>\\s*',
-        '.+\\s*', // <!----><!---->
-        '</div>\\s*',
-        '</div>\\s*',
-
-        '<div[^>]*>\\s*',
-        '<div[^>]*>\\s*',
-        '<a[^>]*>\\s*',
-        '<span class="c-content-item-infobar__body">(\\d+)</span>\\s*',
-        '</a>\\s*',
-        '</div>\\s*',
-        '</div>\\s*',
-
-        '<div[^>]*>\\s*',
-        '<a[^>]*>\\s*',
-        '<span class="c-content-item-infobar__body">(\\S+)</span>',
+        '<img alt="(?<title>[^"]+)"[^>]+src="(?<image>[^"]+)"[^>]+>\\s*',
     ].join(''), 'gi');
 
     let match;
@@ -117,12 +87,9 @@ export function parseClips(contentText: string): Movie[] {
     while ((match = movieRegexp.exec(text)) !== null) {
         console.debug("match: " + match[0].slice(0, 100) + '...')
         const movie: Movie = {
-            id: parseInt(match[1]),
-            title: match[2],
-            image: match[3],
-            marks: parseInt(match[4]),
-            clips: parseInt(match[5]),
-            star: match[6]
+            id: parseInt(match.groups["id"]),
+            title: match.groups["title"],
+            image: match.groups["image"],
         }
         movies.push(movie);
     }
