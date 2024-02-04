@@ -1,6 +1,30 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { Movie, parseMovies, parsePageCount } from '../src/main';
+import { Movie, parseMovies, parsePageCount, parseProfileContent } from '../src/main';
+
+describe('parseProfileElement', () => {
+    it('should parse profile content', () => {
+        const contentText = `
+            <div class="p-profile__content">
+                <div class="p-profile__avator">
+                    <img alt="小笠原寛明" fileanme="_" src="https://d2ueuvlup6lbue.cloudfront.net/variants/production/store/fill/100/100/e30muzntectait11dk9nqjyp470d/profileImage.png" width="100" height="100">
+                </div>
+        `
+        const expected = {
+            userName: "小笠原寛明",
+            image: "https://d2ueuvlup6lbue.cloudfront.net/variants/production/store/fill/100/100/e30muzntectait11dk9nqjyp470d/profileImage.png"
+        }
+        expect(parseProfileContent(contentText)).toStrictEqual(expected);
+    })
+    it('should parse from full HTML', () => {
+        const contentText = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
+        const expected = {
+            userName: "小笠原寛明",
+            image: "https://d2ueuvlup6lbue.cloudfront.net/variants/production/store/fill/100/100/e30muzntectait11dk9nqjyp470d/profileImage.png"
+        }
+        expect(parseProfileContent(contentText)).toStrictEqual(expected);
+    })
+})
 
 describe('parsePageCount', () => {
     it('should parse page count', () => {

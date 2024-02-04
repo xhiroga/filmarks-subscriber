@@ -17,6 +17,9 @@ clasp pull
 npx jest --init # Not required for clone
 # edit jest.config.js to use ts-jest
 npx jest
+
+clasp push
+# Set trigger
 ```
 
 ## References

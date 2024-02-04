@@ -1,13 +1,15 @@
 function myFunction() {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-    const users = getUsers();
-    users.forEach(user => {
-        Logger.log("user: " + user);
-        const pageCount = getPageCount(user);
-        Logger.log("pageCount: " + pageCount);
+    const userIds = getUserIds();
+    userIds.forEach(userId => {
+        Logger.log("userId: " + userId);
+
+        const user = getUser(userId);
+        Logger.log("user.clipPageCount: " + user.clipPageCount);
+
         const clips: Clip[] = []
-        for (let i = 1; i <= pageCount; i++) {
-            const clipsInPage = getClips(user, i);
+        for (let i = 1; i <= user.clipPageCount; i++) {
+            const clipsInPage = getClips(userId, i);
             clips.push(...clipsInPage);
         }
         console.log("clips: " + JSON.stringify(clips));
@@ -21,23 +23,46 @@ function myFunction() {
         console.log("newClips: " + JSON.stringify(newClips));
         console.log("Number of new clips: " + newClips.length);
 
-        newClips.forEach(clip => postToDiscord(clip))
+        newClips.forEach(clip => postToDiscord(user, clip))
         insertToSheet(sheet, newClips)
     });
 }
 
-function getUsers() {
+function getUserIds() {
     const users = PropertiesService.getScriptProperties().getProperty("FILMARKS_USERS") || "";
     return users.split(',');
 }
 
-function getPageCount(userId) {
+type User = {
+    userId: string,
+    userName: string,
+    image: string
+    clipPageCount: number
+}
+
+function getUser(userId): User {
     const url = 'https://filmarks.com/users/' + userId + '/clips';
 
     const response = UrlFetchApp.fetch(url);
     const contentText = response.getContentText();
 
-    return parsePageCount(contentText);
+    const {userName, image} = parseProfileContent(contentText)
+    const clipPageCount = parsePageCount(contentText);
+
+    return {
+        userId, userName, image, clipPageCount
+    }
+}
+
+export function parseProfileContent(contentText: string): { userName: string, image: string } {
+    const regexp = /<div class="p-profile__avator">\s*<img alt="(?<userName>[^"]+)"[^>]+src="(?<image>[^"]+)"[^>]+>\s*/gi;
+    const match = regexp.exec(contentText);
+
+    if (match === null || match.groups === undefined) {
+        throw new Error('Failed to parse profile content');
+    }
+
+    return { userName: match.groups["userName"], image: match.groups["image"] };
 }
 
 export function parsePageCount(contentText: string) {
@@ -140,9 +165,9 @@ enum HttpMethod {
     PUT = "put"
 }
 
-function postToDiscord(clip: Clip){
+function postToDiscord(user: User, clip: Clip) {
     const discordWebhookUrl = PropertiesService.getScriptProperties().getProperty("DISCORD_WEBHOOK_URL");
-    if (discordWebhookUrl === null){
+    if (discordWebhookUrl === null) {
         console.log("discordWebhookUrl is not set")
         return
     }
@@ -151,7 +176,7 @@ function postToDiscord(clip: Clip){
     const FILMARKS_YELLOW = '16769280'
 
     const payload = {
-        "content": "観たい映画が追加されました！",
+        "content": `${user.userName}さんが観たい映画を追加しました！`,
         "username": "Filmarks",
         "avatar_url": AVATER_URL,
         "embeds": [
@@ -162,6 +187,11 @@ function postToDiscord(clip: Clip){
                 "image": {
                     "url": clip.image
                 },
+                "author": {
+                    "name": `@${user.userId}`,
+                    "url": `https://filmarks.com/users/${user.userId}`,
+                    "icon_url": user.image
+                  },
             }
         ],
     }
