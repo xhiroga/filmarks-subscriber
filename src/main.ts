@@ -9,7 +9,7 @@ function myFunction() {
             const clipsInPage = getClips(user, i);
             clips.push(...clipsInPage);
         }
-        Logger.log("movies: " + clips);
+        console.log("movies: " + JSON.stringify(clips));
     });
 }
 
@@ -69,10 +69,9 @@ export function parseClips(contentText: string): Movie[] {
     const gridRegexp = /<div class=\"p-contents-grid\">[\s\S]*$/gi
     const gridMatch = gridRegexp.exec(contentText);
     if (gridMatch === null) {
-        console.error("No grid found.")
-        return []
+        throw new Error("No grid found")
     }
-    console.debug("gridMatch: " + gridMatch[0].slice(0, 100) + '...')
+    // console.log("gridMatch: " + gridMatch[0].slice(0, 100) + '...')
     text = gridMatch[0]
 
     const movieRegexp = new RegExp([
@@ -85,7 +84,7 @@ export function parseClips(contentText: string): Movie[] {
     let match;
     const movies: Movie[] = []
     while ((match = movieRegexp.exec(text)) !== null) {
-        console.debug("match: " + match[0].slice(0, 100) + '...')
+        // console.log("match: " + match[0].slice(0, 100) + '...')
         const movie: Movie = {
             id: parseInt(match.groups["id"]),
             title: match.groups["title"],
