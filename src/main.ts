@@ -1,15 +1,27 @@
 function myFunction() {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
     const users = getUsers();
     users.forEach(user => {
         Logger.log("user: " + user);
         const pageCount = getPageCount(user);
         Logger.log("pageCount: " + pageCount);
-        const clips: Movie[] = []
+        const clips: Clip[] = []
         for (let i = 1; i <= pageCount; i++) {
             const clipsInPage = getClips(user, i);
             clips.push(...clipsInPage);
         }
-        console.log("movies: " + JSON.stringify(clips));
+        console.log("clips: " + JSON.stringify(clips));
+        console.log("Number of clips: " + clips.length);
+
+        const clipsFromSheet = readFromSheet(sheet)
+        console.log("clipsFromSheet: " + JSON.stringify(clipsFromSheet));
+        console.log("Number of clips from sheet: " + clipsFromSheet.length);
+
+        const newClips = clips.filter(clip => !clipsFromSheet.some(sheetClip => sheetClip.userId === clip.userId && sheetClip.movieId === clip.movieId));
+        console.log("newClips: " + JSON.stringify(newClips));
+        console.log("Number of new clips: " + newClips.length);
+
+        insertToSheet(sheet, newClips)
     });
 }
 
@@ -39,31 +51,27 @@ export function parsePageCount(contentText: string) {
     return pageCount;
 }
 
-function getClips(userId: string, page: number): Movie[] {
+export type Clip = {
+    userId: string
+} & Movie
+
+function getClips(userId: string, page: number): Clip[] {
     const url = 'https://filmarks.com/users/' + userId + '/clips' + '?page=' + page;
     Logger.log("url: " + url);
 
     const response = UrlFetchApp.fetch(url);
     const contentText = response.getContentText()
 
-    // DEBUG
-    const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-    const maxChars = 40000;
-    for (let i = 0; i < contentText.length; i += maxChars) {
-        const cell = sheet.getRange("A" + (i / maxChars + 1));
-        cell.setValue(contentText.slice(i, i + maxChars));
-    }
-
-    return parseClips(contentText)
+    return parseMovies(contentText).map(movie => ({ userId, ...movie }))
 }
 
 export type Movie = {
-    "id": number
+    "movieId": number
     "title": string
     "image": string
 }
 
-export function parseClips(contentText: string): Movie[] {
+export function parseMovies(contentText: string): Movie[] {
     let text = contentText
 
     const gridRegexp = /<div class=\"p-contents-grid\">[\s\S]*$/gi
@@ -82,15 +90,43 @@ export function parseClips(contentText: string): Movie[] {
     ].join(''), 'gi');
 
     let match;
-    const movies: Movie[] = []
+    const clips: Movie[] = []
     while ((match = movieRegexp.exec(text)) !== null) {
         // console.log("match: " + match[0].slice(0, 100) + '...')
-        const movie: Movie = {
-            id: parseInt(match.groups["id"]),
+        const clip: Movie = {
+            movieId: parseInt(match.groups["id"]),
             title: match.groups["title"],
             image: match.groups["image"],
         }
-        movies.push(movie);
+        clips.push(clip);
     }
-    return movies;
+    return clips;
+}
+
+function readFromSheet(sheet): Clip[] {
+    const data = sheet.getDataRange().getValues();
+    const clips: Clip[] = [];
+    for (let i = 0; i < data.length; i++) {
+        const clip: Clip = {
+            userId: data[i][0],
+            movieId: data[i][1],
+            title: data[i][2],
+            image: data[i][3]
+        }
+        clips.push(clip);
+    }
+    return clips;
+}
+
+function insertToSheet(sheet, clips: Clip[]) {
+    const now = new Date().toISOString();
+    const lastRow = sheet.getLastRow() + 1;
+    clips.forEach((clip, index) => {
+        const row = lastRow + index;
+        sheet.getRange(`A${row}`).setValue(clip.userId);
+        sheet.getRange(`B${row}`).setValue(clip.movieId);
+        sheet.getRange(`C${row}`).setValue(clip.title);
+        sheet.getRange(`D${row}`).setValue(clip.image);
+        sheet.getRange(`E${row}`).setValue(now);
+    });
 }
