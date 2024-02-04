@@ -21,6 +21,7 @@ function myFunction() {
         console.log("newClips: " + JSON.stringify(newClips));
         console.log("Number of new clips: " + newClips.length);
 
+        newClips.forEach(clip => postToDiscord(clip))
         insertToSheet(sheet, newClips)
     });
 }
@@ -129,4 +130,49 @@ function insertToSheet(sheet, clips: Clip[]) {
         sheet.getRange(`D${row}`).setValue(clip.image);
         sheet.getRange(`E${row}`).setValue(now);
     });
+}
+
+enum HttpMethod {
+    GET = "get",
+    DELETE = "delete",
+    PATCH = "patch",
+    POST = "post",
+    PUT = "put"
+}
+
+function postToDiscord(clip: Clip){
+    const discordWebhookUrl = PropertiesService.getScriptProperties().getProperty("DISCORD_WEBHOOK_URL");
+    if (discordWebhookUrl === null){
+        console.log("discordWebhookUrl is not set")
+        return
+    }
+
+    const AVATER_URL = 'https://assets.st-note.com/production/uploads/images/9705150/profile_e98e7f099a96991733dcbad9418a1145.jpeg'
+    const FILMARKS_YELLOW = '16769280'
+
+    const payload = {
+        "content": "観たい映画が追加されました！",
+        "username": "Filmarks",
+        "avatar_url": AVATER_URL,
+        "embeds": [
+            {
+                "title": clip.title,
+                "url": `https://filmarks.com/movies/${clip.movieId}`,
+                "color": FILMARKS_YELLOW,
+                "image": {
+                    "url": clip.image
+                },
+            }
+        ],
+    }
+
+    const options = {
+        "method": HttpMethod.POST,
+        "headers": {
+            "Content-Type": "application/json",
+        },
+        "payload": JSON.stringify(payload)
+    }
+
+    UrlFetchApp.fetch(discordWebhookUrl, options);
 }
